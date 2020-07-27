@@ -3,7 +3,6 @@
 #
 using Pkg
 Pkg.add( Pkg.PackageSpec(url="https://github.com/clima/climatemachine.jl", rev="master") )
-ENV["JULIA_MPI_DIR"]="/usr/local"
 Pkg.add("MPI")
 Pkg.add("StaticArrays")
 Pkg.activate("ClimateMachine")
