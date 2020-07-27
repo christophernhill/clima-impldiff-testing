@@ -67,7 +67,7 @@ function IVDCDGModel(
    kwargs...,
    )
 
-   modeldata=(dt=bl.dt,κᶻ=bl.κᶻ,κᶜ=bl.κᶜ)
+   modeldata=(dt=bl.dt,κᶻ=bl.κᶻ,κᶜ=bl.κᶜ,cʰ=bl.cʰ,cᶻ=bl.cᶻ)
 
    return DGModel(bl,grid,nfnondiff,nfdiff,gnf;kwargs...,modeldata=modeldata,)
 end

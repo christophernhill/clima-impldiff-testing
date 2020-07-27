@@ -68,7 +68,7 @@ include("IVDCModel.jl")
 
  # Create balance law and RHS arrays for diffusion equation
  ivdc_dg = IVDCDGModel(
-  IVDCModel{FT}(;dt=3600),
+  IVDCModel{FT}(;dt=3600,cʰ=cʰ,cᶻ=cᶻ),
   grid_3D,
   RusanovNumericalFlux(),
   CentralNumericalFluxSecondOrder(),
