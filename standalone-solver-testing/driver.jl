@@ -101,10 +101,10 @@ include("IVDCModel.jl")
  ivdc_RHS.θ .= 0/dt
 
  # Try evaluating the operator once
- ivdc_dg(ivdc_Q,ivdc_RHS,nothing,0;increment=false);
+ # ivdc_dg(ivdc_Q,ivdc_RHS,nothing,0;increment=false);
 
  # Now try applying batched GM res solver
- lm!(x,y)=ivdc_dg(y,x,nothing,0;increment=false)
+ lm!(y,x)=ivdc_dg(y,x,nothing,0;increment=false)
  solve_time = @elapsed iters = linearsolve!(lm!, ivdc_bgm_solver, ivdc_Q, ivdc_RHS);
 
  println("solver iters, time: ",iter_tot, ", ", solve_tot)
