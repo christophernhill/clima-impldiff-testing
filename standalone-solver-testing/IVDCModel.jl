@@ -7,13 +7,29 @@ using ClimateMachine.DGMethods.NumericalFluxes:
 using ClimateMachine.DGMethods.NumericalFluxes:
     CentralNumericalFluxGradient, CentralNumericalFluxSecondOrder
 
+newstyle=:(
 using ClimateMachine.BalanceLaws:
-    BalanceLaw, Prognostic, Auxiliary, Gradient, GradientFlux
+   BalanceLaw, Prognostic, Auxiliary, Gradient, GradientFlux
+)
+oldstyle=:(
+using ClimateMachine.BalanceLaws:
+    BalanceLaw
+)
+@oldnew
 
 using ClimateMachine.VariableTemplates
 
+newstyle=:(
 import ClimateMachine.DGMethods:
-    init_state_auxiliary!, update_auxiliary_state!, update_auxiliary_state_gradient!, vars_state, VerticalDirection, boundary_state!
+     init_state_auxiliary!, update_auxiliary_state!, update_auxiliary_state_gradient!, vars_state, VerticalDirection, boundary_state!
+)
+oldstyle=:(
+ import ClimateMachine.DGMethods:
+    init_state_auxiliary!, update_auxiliary_state!, update_auxiliary_state_gradient!, VerticalDirection, boundary_state!;
+ import ClimateMachine.DGMethods:
+    vars_state_auxiliary, vars_state_gradient, vars_state_conservative, vars_state_gradient_flux
+)
+@oldnew
 
 using StaticArrays
 
@@ -78,15 +94,22 @@ end
 
 # State variable and initial value, just one for now, θ
 ##
-vars_state(m::IVDCModel, ::Prognostic, FT) = @vars(θ::FT)
-
-function init_state_prognostic!(
-    m::IVDCModel,
-    Q::Vars,
-    A::Vars,
-    coords,
-    t,
+oldstyle=:(
+vars_state_conservative(m::IVDCModel, FT) = @vars(θ::FT)
 )
+newstyle=:(
+vars_state(m::IVDCModel, ::Prognostic, FT) = @vars(θ::FT)
+)
+@oldnew
+
+newstyle=:(
+init_state_prognostic!( args...) = ( init_state_cp!( args... ) )
+)
+oldstyle=:(
+init_state_conservative!( args...) = ( init_state_cp!( args... ) )
+)
+@oldnew
+function init_state_cp!( m::IVDCModel, Q::Vars, A::Vars, coords, t,)
   @inbounds begin
     Q.θ = -0
   end
@@ -95,8 +118,13 @@ end
 ##
 
 ##
-####  vars_state_auxiliary(m::IVDCModel, FT) = @vars(θ_init::FT)
+oldstyle=:(
+vars_state_auxiliary(m::IVDCModel, FT) = @vars(θ_init::FT)
+)
+newstyle=:(
 vars_state(m::IVDCModel, ::Auxiliary, FT) = @vars(θ_init::FT)
+)
+@oldnew
 
 function init_state_auxiliary!(m::IVDCModel,A::Vars, _...)
   @inbounds begin
@@ -109,8 +137,13 @@ end
 
 # Variables and operations used in differentiating first derivatives
 ##
-####  vars_state_gradient(m::IVDCModel, FT) = @vars(∇θ::FT, ∇θ_init::FT,)
+oldstyle=:(
+vars_state_gradient(m::IVDCModel, FT) = @vars(∇θ::FT, ∇θ_init::FT,)
+)
+newstyle=:(
 vars_state(m::IVDCModel, ::Gradient, FT) = @vars(∇θ::FT, ∇θ_init::FT,)
+)
+@oldnew
 
 @inline function compute_gradient_argument!(
     m::IVDCModel,
@@ -129,8 +162,13 @@ end
 
 # Variables and operations used in differentiating second derivatives
 ##
-#### vars_state_gradient_flux(m::IVDCModel, FT) = @vars(κ∇θ::SVector{3, FT})
+oldstyle=:(
+vars_state_gradient_flux(m::IVDCModel, FT) = @vars(κ∇θ::SVector{3, FT})
+)
+newstyle=:(
 vars_state(m::IVDCModel, ::GradientFlux, FT) = @vars(κ∇θ::SVector{3, FT})
+)
+@oldnew
 
 @inline function compute_gradient_flux!(
     m::IVDCModel,
@@ -152,7 +190,7 @@ end
     κᶻ = m.κᶻ
     κᶜ = m.κᶜ
     ∂θ∂z < 0 ? κ = (@SVector [0, 0, κᶜ]) : κ = (@SVector [0, 0, κᶻ])
-    return Diagonal(-κ)
+    return Diagonal(-κ.*0)
 end
 ##
 #
@@ -169,11 +207,9 @@ end
     t,
     direction,
 )
-   #ivdc_dt = m.ivdc_dt
     ivdc_dt = m.dt
     @inbounds begin
      S.θ = Q.θ/ivdc_dt
-     # S.θ = 0
     end
 
     return nothing

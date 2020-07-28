@@ -5,8 +5,19 @@ using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
 using ClimateMachine.DGMethods.NumericalFluxes
 
-import ClimateMachine.DGMethods:
-    init_state_auxiliary!, update_auxiliary_state!, update_auxiliary_state_gradient!, vars_state, VerticalDirection, init_state_prognostic!, boundary_state!, flux_first_order!, flux_second_order!, source!, wavespeed
+macro oldnew()
+ return eval(oldstyle)
+end
+
+newstyle=:( 
+ import ClimateMachine.DGMethods:
+   init_state_auxiliary!, update_auxiliary_state!, update_auxiliary_state_gradient!, vars_state, VerticalDirection, init_state_prognostic!, boundary_state!, flux_first_order!, flux_second_order!, source!, wavespeed
+ )
+oldstyle=:(
+ import ClimateMachine.DGMethods:
+  init_state_auxiliary!, update_auxiliary_state!, update_auxiliary_state_gradient!, VerticalDirection, init_state_conservative!, boundary_state!, flux_first_order!, flux_second_order!, source!, wavespeed
+ )
+@oldnew
 
 import  ClimateMachine.SystemSolvers:
     BatchedGeneralizedMinimalResidual, linearsolve!
@@ -68,7 +79,7 @@ include("IVDCModel.jl")
 
  # Create balance law and RHS arrays for diffusion equation
  ivdc_dg = IVDCDGModel(
-  IVDCModel{FT}(;dt=3600,cʰ=cʰ,cᶻ=cᶻ),
+  IVDCModel{FT}(;dt=dt,cʰ=cʰ,cᶻ=cᶻ),
   grid_3D,
   RusanovNumericalFlux(),
   CentralNumericalFluxSecondOrder(),
@@ -86,9 +97,17 @@ include("IVDCModel.jl")
   max_subspace_size=10);
 
  # Set up right hand side
- ivdc_Q.θ .= 0
- ivdc_RHS.θ .= 0
+ ivdc_Q.θ   .= 0
+ ivdc_RHS.θ .= 0/dt
+
+ # Try evaluating the operator once
  ivdc_dg(ivdc_Q,ivdc_RHS,nothing,0;increment=false);
+
+ # Now try applying batched GM res solver
+ lm!(x,y)=ivdc_dg(y,x,nothing,0;increment=false)
+ solve_time = @elapsed iters = linearsolve!(lm!, ivdc_bgm_solver, ivdc_Q, ivdc_RHS);
+
+ println("solver iters, time: ",iter_tot, ", ", solve_tot)
 
 #     dg = OceanDGModel(
 #        model,
