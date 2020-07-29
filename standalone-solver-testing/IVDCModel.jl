@@ -7,6 +7,8 @@ using ClimateMachine.DGMethods.NumericalFluxes:
 using ClimateMachine.DGMethods.NumericalFluxes:
     CentralNumericalFluxGradient, CentralNumericalFluxSecondOrder
 
+using LinearAlgebra: I, dot, Diagonal
+
 newstyle=:(
 using ClimateMachine.BalanceLaws:
    BalanceLaw, Prognostic, Auxiliary, Gradient, GradientFlux
@@ -21,7 +23,7 @@ using ClimateMachine.VariableTemplates
 
 newstyle=:(
 import ClimateMachine.DGMethods:
-     init_state_auxiliary!, update_auxiliary_state!, update_auxiliary_state_gradient!, vars_state, VerticalDirection, boundary_state!
+     init_state_auxiliary!, update_auxiliary_state!, update_auxiliary_state_gradient!, vars_state, VerticalDirection, boundary_state!, compute_gradient_flux!
 )
 oldstyle=:(
  import ClimateMachine.DGMethods:
@@ -179,8 +181,7 @@ vars_state(m::IVDCModel, ::GradientFlux, FT) = @vars(κ∇θ::SVector{3, FT})
     t,
 )
     κ = diffusivity_tensor(m, G.∇θ_init[3])
-    # D.κ∇θ = -κ * G.∇θ .* false
-    D.κ∇θ .= false
+    D.κ∇θ = -κ * G.∇θ
     return nothing
 end
 ##
@@ -226,22 +227,17 @@ function flux_first_order!(::IVDCModel, _...) end
 function flux_second_order!(
     ::IVDCModel,
     F::Grad,
-    S::Vars,
+    Q::Vars,
     D::Vars,
     H::Vars,
     A::Vars,
     t,
 )
-    #NAN F.θ += D.κ∇θ
-    #NONAN F.θ = D.κ∇θ .* false .+ 0.
-    #NONAN F.θ = D.κ∇θ .* false
     F.θ = D.κ∇θ
-    #NONAN F.θ = A.θ_init
 end
 
 function wavespeed(m::IVDCModel, n⁻, _...)
     C = abs(SVector(m.cʰ, m.cʰ, m.cᶻ)' * n⁻)
-    # C = abs(SVector(0, 0, 0)' * n⁻)
     return C
 end
 ##
@@ -292,8 +288,7 @@ function boundary_state!(
     _...,
 )
     Q⁺.θ = Q⁻.θ
-    # D⁺.κ∇θ = n⁻ * -0
-    D⁺.κ∇θ = n⁻ * false
+    D⁺.κ∇θ = n⁻ * -0
     return nothing
 end
 
