@@ -6,7 +6,7 @@ using ClimateMachine.DGMethods
 using ClimateMachine.DGMethods.NumericalFluxes
 
 macro oldnew()
- return eval(oldstyle)
+ return eval(newstyle)
 end
 
 newstyle=:( 
@@ -99,9 +99,12 @@ include("IVDCModel.jl")
  # Set up right hand side
  ivdc_Q.θ   .= 0
  ivdc_RHS.θ .= 0/dt
+ ivdc_dg.state_auxiliary.θ_init .= ivdc_Q.θ
 
  # Try evaluating the operator once
- # ivdc_dg(ivdc_Q,ivdc_RHS,nothing,0;increment=false);
+ ivdc_dg(ivdc_Q,ivdc_RHS,nothing,0;increment=false);
+ println( maximum(ivdc_Q) )
+ exit()
 
  # Now try applying batched GM res solver
  lm!(y,x)=ivdc_dg(y,x,nothing,0;increment=false)
