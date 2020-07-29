@@ -152,7 +152,7 @@ vars_state(m::IVDCModel, ::Gradient, FT) = @vars(∇θ::FT, ∇θ_init::FT,)
     A,
     t,
 )
-    #NAN G.∇θ = Q.θ
+    G.∇θ = Q.θ
     #NAN G.∇θ_init = A.θ_init
 
     return nothing
