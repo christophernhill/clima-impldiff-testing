@@ -152,8 +152,8 @@ vars_state(m::IVDCModel, ::Gradient, FT) = @vars(∇θ::FT, ∇θ_init::FT,)
     A,
     t,
 )
-    G.∇θ = Q.θ
-    G.∇θ_init = A.θ_init
+    #NAN G.∇θ = Q.θ
+    #NAN G.∇θ_init = A.θ_init
 
     return nothing
 end
@@ -179,7 +179,7 @@ vars_state(m::IVDCModel, ::GradientFlux, FT) = @vars(κ∇θ::SVector{3, FT})
     t,
 )
     κ = diffusivity_tensor(m, G.∇θ_init[3])
-    D.κ∇θ = -κ * G.∇θ
+    D.κ∇θ = -κ * G.∇θ .* false
     return nothing
 end
 ##
@@ -190,6 +190,7 @@ end
     κᶻ = m.κᶻ
     κᶜ = m.κᶜ
     ∂θ∂z < 0 ? κ = (@SVector [0, 0, κᶜ]) : κ = (@SVector [0, 0, κᶻ])
+    κ = (@SVector [0, 0, 0])
     return Diagonal(-κ.*0)
 end
 ##
@@ -231,11 +232,13 @@ function flux_second_order!(
     A::Vars,
     t,
 )
-    F.θ += D.κ∇θ
+    #NAN F.θ += D.κ∇θ
+    F.θ = D.κ∇θ
 end
 
 function wavespeed(m::IVDCModel, n⁻, _...)
-    C = abs(SVector(m.cʰ, m.cʰ, m.cᶻ)' * n⁻)
+    # C = abs(SVector(m.cʰ, m.cʰ, m.cᶻ)' * n⁻)
+    C = abs(SVector(0, 0, 0)' * n⁻)
     return C
 end
 ##
@@ -286,7 +289,7 @@ function boundary_state!(
     _...,
 )
     Q⁺.θ = Q⁻.θ
-    D⁺.κ∇θ = n⁻ * -0
+    D⁺.κ∇θ = n⁻ * -0 .* false
     return nothing
 end
 
