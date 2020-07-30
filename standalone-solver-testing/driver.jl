@@ -87,22 +87,24 @@ include("IVDCModel.jl")
    max_subspace_size=10);
 
  # Set up right hand side
- ivdc_RHS.θ   .= ivdc_Q.θ/dt
- #### ivdc_RHS.θ   .= ivdc_Q.θ
- ivdc_dg.state_auxiliary.θ_init .= ivdc_Q.θ
+ for i=1:50000
+  ivdc_RHS.θ   .= ivdc_Q.θ/dt
+  #### ivdc_RHS.θ   .= ivdc_Q.θ
+  ivdc_dg.state_auxiliary.θ_init .= ivdc_Q.θ
 
- println("Before maximum ", maximum(ivdc_Q.θ) )
- println("Before minimum ", minimum(ivdc_Q.θ) )
+  println("Before maximum ", maximum(ivdc_Q.θ) )
+  println("Before minimum ", minimum(ivdc_Q.θ) )
  
- # Evaluate operator
- #### ivdc_dg(ivdc_Q,ivdc_RHS,nothing,0;increment=false);
- #### println( maximum(ivdc_Q) )
+  # Evaluate operator
+  #### ivdc_dg(ivdc_Q,ivdc_RHS,nothing,0;increment=false);
+  #### println( maximum(ivdc_Q) )
 
- # Now try applying batched GM res solver
- lm!(y,x)=ivdc_dg(y,x,nothing,0;increment=false)
- solve_time = @elapsed iters = linearsolve!(lm!, ivdc_bgm_solver, ivdc_Q, ivdc_RHS);
- println("solver iters, time: ",iters, ", ", solve_time)
+  # Now try applying batched GM res solver
+  lm!(y,x)=ivdc_dg(y,x,nothing,0;increment=false)
+  solve_time = @elapsed iters = linearsolve!(lm!, ivdc_bgm_solver, ivdc_Q, ivdc_RHS);
+  println("solver iters, time: ",iters, ", ", solve_time)
 
- println("After maximum ", maximum(ivdc_Q.θ) )
- println("After minimum ", minimum(ivdc_Q.θ) )
+  println("After maximum ", maximum(ivdc_Q.θ) )
+  println("After minimum ", minimum(ivdc_Q.θ) )
+ end
 
