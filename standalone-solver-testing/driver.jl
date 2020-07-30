@@ -9,16 +9,6 @@ macro oldnew()
  return eval(newstyle)
 end
 
-newstyle=:( 
- import ClimateMachine.DGMethods:
-   init_state_auxiliary!, update_auxiliary_state!, update_auxiliary_state_gradient!, vars_state, VerticalDirection, init_state_prognostic!, boundary_state!, flux_first_order!, flux_second_order!, source!, wavespeed
- )
-oldstyle=:(
- import ClimateMachine.DGMethods:
-  init_state_auxiliary!, update_auxiliary_state!, update_auxiliary_state_gradient!, VerticalDirection, init_state_conservative!, boundary_state!, flux_first_order!, flux_second_order!, source!, wavespeed
- )
-@oldnew
-
 import  ClimateMachine.SystemSolvers:
     BatchedGeneralizedMinimalResidual, linearsolve!
 
@@ -97,29 +87,22 @@ include("IVDCModel.jl")
    max_subspace_size=10);
 
  # Set up right hand side
- ivdc_Q.θ   .= false
- ivdc_RHS.θ .= 0/dt
+ ivdc_RHS.θ   .= ivdc_Q.θ/dt
+ #### ivdc_RHS.θ   .= ivdc_Q.θ
  ivdc_dg.state_auxiliary.θ_init .= ivdc_Q.θ
 
- # Try evaluating the operator once
- ivdc_dg(ivdc_Q,ivdc_RHS,nothing,0;increment=false);
- println( maximum(ivdc_Q) )
+ println("Before maximum ", maximum(ivdc_Q.θ) )
+ println("Before minimum ", minimum(ivdc_Q.θ) )
+ 
+ # Evaluate operator
+ #### ivdc_dg(ivdc_Q,ivdc_RHS,nothing,0;increment=false);
+ #### println( maximum(ivdc_Q) )
 
  # Now try applying batched GM res solver
  lm!(y,x)=ivdc_dg(y,x,nothing,0;increment=false)
  solve_time = @elapsed iters = linearsolve!(lm!, ivdc_bgm_solver, ivdc_Q, ivdc_RHS);
-
  println("solver iters, time: ",iters, ", ", solve_time)
 
-#     dg = OceanDGModel(
-#        model,
-#        grid_3D,
-#    #   CentralNumericalFluxFirstOrder(),
-#        RusanovNumericalFlux(),
-#        CentralNumericalFluxSecondOrder(),
-#        CentralNumericalFluxGradient(),
-#    )
-
-
-
+ println("After maximum ", maximum(ivdc_Q.θ) )
+ println("After minimum ", minimum(ivdc_Q.θ) )
 
