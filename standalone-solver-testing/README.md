@@ -5,13 +5,13 @@
 ```
 export JULIA_DEPOT_PATH=`pwd`/.julia
 export JULIA_MPI_DIR="/usr/local"
-/Applications/Julia-1.4.app/Contents/Resources/julia/bin/julia --project=../ClimateMachine.jl mysetup.jl
+/Applications/Julia-1.4.app/Contents/Resources/julia/bin/julia --project=../../ClimateMachine.jl mysetup.jl
 ```
 
 ## Run
 ```
 export JULIA_DEPOT_PATH=`pwd`/.julia
 export JULIA_MPI_DIR="/usr/local"
-/Applications/Julia-1.4.app/Contents/Resources/julia/bin/julia --project=../ClimateMachine.jl driver.jl
+/Applications/Julia-1.4.app/Contents/Resources/julia/bin/julia --project=../../ClimateMachine.jl driver.jl
 ```
 
