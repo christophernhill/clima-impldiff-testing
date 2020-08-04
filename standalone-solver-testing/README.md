@@ -1,4 +1,10 @@
 # Standalone solver test with CLiMA driver
+#
+# Sets up a vertical temperature profile in multiple vertical (Z) columns of a horizontal (XY) 
+# domain and then invokes a simple DG model to solve a 1-d vertical diffusion equation of the
+# sort associated with ocean convective mixing parameterizations with a background diffusivity
+# in stably stratified locations and an elevated diffusivity in unstabke regions.
+#
 
 ## One time setup in clean directory, dedicated project tree and with local MPI install in /usr/local
 ## Assume ClimateMachine.jl (https://github.com/clima/climatemachine.jl) is in clone two levels up
