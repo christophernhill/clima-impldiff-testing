@@ -1,18 +1,45 @@
+#
+# driverdriver.jl::
+#
+# trivial coupled system mock up
+#
+# very simple top level driver that show proof of concept implementation for 
+# simple couplng API sufficient for v0 atmos-land-ocean DG tools.
+# Components
+# _A - atmos
+# _L - land
+# _O - ocean
+# _C - coupler
+#
+# driverdriver multiplexes land ocean atmos and coupler components.
+#
+# all exist on aligned horizontal grids decomposed on ranks in aligned way.
+#
+# components in this example run sequentially on shared set/subset of 
+# underlying resources without spinwait contention.
+#
+# components have their own MPI communicators to support MPI rank disaggregation onto
+# distinct resources or to interleave on same resources with some lightweight
+# resource contention coordination.
+#
+# disaggregated ranks require coupler to handle asynchronous send/receive posting
+# 
+#
+abstract type CLIMAcomponent end
+abstract type  DGModelComponent <: CLIMAcomponent end
+struct CouplerComponent         <: CLIMAcomponent end
+struct AtmosModelComponent      <: DGModelComponent end
+struct LandModelComponent       <: DGModelComponent end
+struct OceanModelComponent      <: DGModelComponent end
+
+comp_config(args...; kargs...) = nothing;
+#
 using MPI
 using ClimateMachine
 using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
 using ClimateMachine.DGMethods.NumericalFluxes
-
-macro oldnew()
- return eval(newstyle)
-end
-
-import  ClimateMachine.SystemSolvers:
-    BatchedGeneralizedMinimalResidual, linearsolve!
-
-include("IVDCModel.jl")
 
  #####
  # Basic initialization
@@ -22,12 +49,25 @@ include("IVDCModel.jl")
  mpicomm = MPI.COMM_WORLD
  FT = Float64
 
+ # In general we might dup communicator and/or create intercommunicators/
+ # intracommicators depending on resource use and parallelism mode. Here we 
+ # assume sequential, all componenta on all same ranks, aligned. So each component 
+ # just uses default mpicomm - (also not sure if CLiMA as written always uses 
+ # component communicator). We carry different names so we can make them different 
+ # in the future.
+ mpicomm_A=mpicomm
+ mpicomm_O=mpicomm
+ mpicomm_L=mpicomm
+ mpicomm_C=mpicomm
+
  #####
  # Create mesh
  #####
 
- # Horiz
- # Same horizontal mesh and same polynomical order for everyone
+ # Horiz mesh
+ # Same horizontal mesh size, extents and polynomical order for all components
+ # We still create distinct grids so that they can use different communicators when
+ # needed.
  const N = 4
  const Nˣ = 10
  const Nʸ = 10
@@ -36,98 +76,68 @@ include("IVDCModel.jl")
  xrange = range(FT(0); length = Nˣ + 1, stop = Lˣ)
  yrange = range(FT(0); length = Nʸ + 1, stop = Lʸ)
  brickrange_2D = (xrange, yrange)
- topl_2D       =
-   BrickTopology( mpicomm, brickrange_2D, periodicity = (false, false) );
- grid_2D = DiscontinuousSpectralElementGrid(
-   topl_2D,
+ topol_2D( comm ) = (
+   BrickTopology( comm, brickrange_2D, periodicity = (false, false) ) );
+ grid_2D( topol ) = ( DiscontinuousSpectralElementGrid(
+   topol,
    FloatType = FT,
    DeviceArray = ArrayType,
    polynomialorder = N,
  )
+ )
+ topo_2D_A  = topol_2D( mpicomm_A )
+ grid_2D_A  = grid_2D(  topo_2D_A )
+ topo_2D_O  = topol_2D( mpicomm_O )
+ grid_2D_O  = grid_2D(  topo_2D_O )
+ topo_2D_L  = topol_2D( mpicomm_L )
+ grid_2D_L  = grid_2D(  topo_2D_L )
+ topo_2D_C  = topol_2D( mpicomm_C )
+ grid_2D_C  = grid_2D(  topo_2D_C )
 
- # Vert
- # Def
+
+ # Vert mesh (stacked topology)
+ # Different components can have different vertical extents and element counts
  const Nᶻ = 20
  # Atmos vert
  const Nᶻ_A = 20
  # Ocean vert
  const Nᶻ_O = 50
- # Land vert
- const Nᶻ_L =  1
+ # Land vert - lets makes this 2d as an example
+ const Nᶻ_L =  0
+ # Coupler vert - lets makes this 2d too for now
+ const Nᶻ_C =  0
 
- const H = 1000  # m
  const H_A = 100000  # m
  const H_O = 5000    # m
-
- zrange   = range(FT(-H); length = Nᶻ + 1, stop = 0)
- zrange_A = range(FT(0   ); length = Nᶻ_A + 1, stop = H_A)
- zrange_) = range(FT(-H_O); length = Nᶻ_O + 1, stop = 0  )
-
-
- brickrange_3D = (xrange, yrange, zrange)
- topl_3D = StackedBrickTopology(
-   mpicomm,
-   brickrange_3D;
-   periodicity = (false, false, false),
-   boundary = ((1, 1), (1, 1), (2, 3)),
- )
- grid_3D = DiscontinuousSpectralElementGrid(
-   topl_3D,
+ zrange_A  = range(FT(0   ); length = Nᶻ_A + 1, stop = H_A)
+ zrange_O  = range(FT(-H_O); length = Nᶻ_O + 1, stop = 0  )
+ brickrange_3D_A = (xrange, yrange, zrange_A)
+ brickrange_3D_O = (xrange, yrange, zrange_O)
+ topol_3D( comm, br ) = (
+  StackedBrickTopology(
+    mpicomm,
+    br;
+    periodicity = (false, false, false),
+    boundary = ((1, 1), (1, 1), (2, 3)),
+  )
+ );
+ topol_3D_A = topol_3D( mpicomm_A, brickrange_3D_A  )
+ topol_3D_O = topol_3D( mpicomm_A, brickrange_3D_O  )
+ grid_3D( topol ) = ( 
+  DiscontinuousSpectralElementGrid(
+   topol,
    FloatType = FT,
    DeviceArray = ArrayType,
    polynomialorder = N,
- )
-
- # Init drivers
-
- # Get masks
-
-
- # Wave speeds for numerical flux
- const cʰ = 1  # typical of ocean internal-wave speed
- const cᶻ = 0
-
- # Set a timestep for implicit solve
- dt = 5400
-
- # Create balance law and RHS arrays for diffusion equation
- ivdc_dg = IVDCDGModel(
-  IVDCModel{FT}(;dt=dt,cʰ=cʰ,cᶻ=cᶻ),
-  grid_3D,
-  RusanovNumericalFlux(),
-  CentralNumericalFluxSecondOrder(),
-  CentralNumericalFluxGradient();
-  direction=VerticalDirection(),
+  )
  );
+ grid_3D_A=grid_3D( topol_3D_A )
+ grid_3D_O=grid_3D( topol_3D_O )
 
- ivdc_Q   = init_ode_state(ivdc_dg, FT(0); init_on_cpu=true)
- ivdc_RHS = init_ode_state(ivdc_dg, FT(0); init_on_cpu=true)
+ # Config and init coupler
+ comp_C=comp_config( CouplerComponent(), ( (), ) )
 
- # Instantiate a batched GM-RES solver uaing balance law as its operator
- ivdc_bgm_solver=BatchedGeneralizedMinimalResidual(
-   ivdc_dg,
-   ivdc_Q;
-   max_subspace_size=10);
-
- # Set up right hand side
- for i=1:50000
-  ivdc_RHS.θ   .= ivdc_Q.θ/dt
-  #### ivdc_RHS.θ   .= ivdc_Q.θ
-  ivdc_dg.state_auxiliary.θ_init .= ivdc_Q.θ
-
-  println("Before maximum ", maximum(ivdc_Q.θ) )
-  println("Before minimum ", minimum(ivdc_Q.θ) )
- 
-  # Evaluate operator
-  #### ivdc_dg(ivdc_Q,ivdc_RHS,nothing,0;increment=false);
-  #### println( maximum(ivdc_Q) )
-
-  # Now try applying batched GM res solver
-  lm!(y,x)=ivdc_dg(y,x,nothing,0;increment=false)
-  solve_time = @elapsed iters = linearsolve!(lm!, ivdc_bgm_solver, ivdc_Q, ivdc_RHS);
-  println("solver iters, time: ",iters, ", ", solve_time)
-
-  println("After maximum ", maximum(ivdc_Q.θ) )
-  println("After minimum ", minimum(ivdc_Q.θ) )
- end
-
+ # Config (including mask) and init drivers of individual components
+ comp_A=comp_config( AtmosModelComponent() ; grids=( (grid=grid_3D_A, label="g3da",), ) )
+ comp_L=comp_config( LandModelComponent()  ; grid2D=grid_2D_L )
+ comp_O=comp_config( OceanModelComponent() ; grid3D=grid_3D_O )
