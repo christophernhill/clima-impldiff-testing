@@ -26,8 +26,10 @@ include("IVDCModel.jl")
  # Create mesh
  #####
  const N = 4
- const Nˣ = 20
- const Nʸ = 20
+ # const Nˣ = 20
+ # const Nʸ = 20
+ const Nˣ = 2
+ const Nʸ = 2
  const Nᶻ = 20
  const Lˣ = 4e6  # m
  const Lʸ = 4e6  # m
@@ -36,6 +38,8 @@ include("IVDCModel.jl")
  xrange = range(FT(0); length = Nˣ + 1, stop = Lˣ)
  yrange = range(FT(0); length = Nʸ + 1, stop = Lʸ)
  zrange = range(FT(-H); length = Nᶻ + 1, stop = 0)
+
+ gconf  = (N=N,Nˣ=Nˣ,Nʸ=Nʸ,Lˣ=Lˣ,Lʸ=Lʸ,H=H,xrange=xrange,yrange=yrange,zrange=zrange)
 
  brickrange_2D = (xrange, yrange)
  topl_2D       =
@@ -65,11 +69,11 @@ include("IVDCModel.jl")
  const cᶻ = 0
 
  # Set a timestep for implicit solve
- dt = 5400
+ dt = 5400/5
 
  # Create balance law and RHS arrays for diffusion equation
  ivdc_dg = IVDCDGModel(
-  IVDCModel{FT}(;dt=dt,cʰ=cʰ,cᶻ=cᶻ),
+  IVDCModel{FT}(;dt=dt,cʰ=cʰ,cᶻ=cᶻ,gconf=gconf),
   grid_3D,
   RusanovNumericalFlux(),
   CentralNumericalFluxSecondOrder(),
@@ -86,8 +90,11 @@ include("IVDCModel.jl")
    ivdc_Q;
    max_subspace_size=10);
 
+ θ₀=deepcopy( ivdc_Q.θ )
+
  # Set up right hand side
- for i=1:50000
+ # for i=1:200000
+ for i=1:50
   ivdc_RHS.θ   .= ivdc_Q.θ/dt
   #### ivdc_RHS.θ   .= ivdc_Q.θ
   ivdc_dg.state_auxiliary.θ_init .= ivdc_Q.θ
@@ -108,3 +115,12 @@ include("IVDCModel.jl")
   println("After minimum ", minimum(ivdc_Q.θ) )
  end
 
+ ## using Plots
+ ## ni=2;ei=1
+ ## nj=3;ej=1
+
+ ## θᶠ=reshape( ivdc_Q.θ,(N+1,N+1,N+1,1,Nᶻ,Nˣ,Nʸ) )[ni,nj,:,1,:,ei,ej]
+ ## θ⁰=reshape( θ₀,(N+1,N+1,N+1,1,Nᶻ,Nˣ,Nʸ) )[ni,nj,:,1,:,ei,ej]
+ ## zc=reshape( grid_3D.vgeo,(N+1,N+1,N+1,16,Nᶻ,Nˣ,Nʸ) )[ni,nj,:,15,:,ei,ej]
+ ## plot(θᶠ[:],zc[:],label="")
+ ## plot!(θ⁰[:],zc[:],label="")

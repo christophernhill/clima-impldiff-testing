@@ -18,6 +18,7 @@ import ClimateMachine.DGMethods:
      init_state_auxiliary!, update_auxiliary_state!, update_auxiliary_state_gradient!, vars_state, VerticalDirection, boundary_state!, compute_gradient_flux!, init_state_prognostic!, flux_first_order!, flux_second_order!, source!, wavespeed, compute_gradient_argument!
 
 using StaticArrays
+using Random
 
 """
  IVDCModel{M} <: BalanceLaw
@@ -42,6 +43,7 @@ struct IVDCModel{FT} <: AbstractIVDCModel
  κᶜ::FT
  cʰ::FT
  cᶻ::FT
+ gconf
  function IVDCModel{FT}(
   ;
   dt = FT(5400),
@@ -49,6 +51,7 @@ struct IVDCModel{FT} <: AbstractIVDCModel
   κᶜ = FT(0.1),
   cʰ = FT(0),
   cᶻ = FT(0),
+  gconf=()
  ) where {FT<: AbstractFloat}
     return new{FT}(
       dt,
@@ -56,6 +59,7 @@ struct IVDCModel{FT} <: AbstractIVDCModel
       κᶜ,
       cʰ,
       cᶻ,
+      gconf
     )
  end
 end
@@ -69,7 +73,7 @@ function IVDCDGModel(
    kwargs...,
    )
 
-   modeldata=(dt=bl.dt,κᶻ=bl.κᶻ,κᶜ=bl.κᶜ,cʰ=bl.cʰ,cᶻ=bl.cᶻ)
+   modeldata=(dt=bl.dt,κᶻ=bl.κᶻ,κᶜ=bl.κᶜ,cʰ=bl.cʰ,cᶻ=bl.cᶻ,gconf=bl.gconf)
 
    return DGModel(bl,grid,nfnondiff,nfdiff,gnf;kwargs...,modeldata=modeldata,)
 end
@@ -85,6 +89,8 @@ vars_state(m::IVDCModel, ::Prognostic, FT) = @vars(θ::FT)
 init_state_prognostic!( args...) = ( init_state_cp!( args... ) )
 function init_state_cp!( m::IVDCModel, Q::Vars, A::Vars, coords, t,)
   @inbounds begin
+    x = coords[1]
+    y = coords[2]
     z = coords[3]
     # Wavy with stable vertical stratification
     # Q.θ = (5 + 4 * cos(y * π / p.Lʸ)) * (1 + z / H)
@@ -101,13 +107,27 @@ function init_state_cp!( m::IVDCModel, Q::Vars, A::Vars, coords, t,)
     #
     # $ \theta(z) = Ae^{\frac{-(z+L)}{L}} - Ce^{\frac{-D(z+L)}{L}} + B + Ez$
     #
-    H=4000.;L=H/10.;A=20.;C=50.;D=2.5;B=8.;E=5.e-4;
+    H₀=m.gconf.H/4
+    H₁=m.gconf.H*2
+    ΔH=H₁-H₀
+    sx=x/m.gconf.Lˣ
+    sy=y/m.gconf.Lʸ
+    D₀=2.
+    D₁=3.
+    ΔD=D₁-D₀
+    # rz=rand(length(z)).-0.5
+    rz=rand()-0.5
+    H=H₀+sx*ΔH
+    D=D₀+sy*ΔD
+    L=H/10.;A=20.;C=50.;B=8.;E=5.e-4;
     ft(xx,L)=exp(-xx/L);
     th1(zz)=A*ft.(-zz .+ L, L);
     th2(zz)=C*ft(D*(-zz .+ L), L);
     phi1=th1.(z)
     phi2=th2.(z)
-    Q.θ = phi1 .- phi2 .+ B .+ E .* z;
+    val=phi1 .- phi2 .+ B .+ E .* z;
+    # Q.θ = val .+ 0.005.*( val.*rz )
+    Q.θ = val + 0.005*val*rz
   end
   return nothing
 end
@@ -263,6 +283,7 @@ function boundary_state!(
 )
     Q⁺.θ = Q⁻.θ
     D⁺.κ∇θ = n⁻ * -0
+    # D⁺.κ∇θ = Q/(rho*cp)   ( at top boundary for heat flux )
     return nothing
 end
 
