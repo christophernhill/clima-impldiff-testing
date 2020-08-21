@@ -10,14 +10,14 @@
 ## Assume ClimateMachine.jl (https://github.com/clima/climatemachine.jl) is in clone two levels up
 ```
 export JULIA_DEPOT_PATH=`pwd`/.julia
-export JULIA_MPI_DIR="/usr/local"
+export JULIA_MPI_PATH"/usr/local"
 /Applications/Julia-1.4.app/Contents/Resources/julia/bin/julia --project=../../ClimateMachine.jl mysetup.jl
 ```
 
 ## Run
 ```
 export JULIA_DEPOT_PATH=`pwd`/.julia
-export JULIA_MPI_DIR="/usr/local"
+export JULIA_MPI_PATH="/usr/local"
 /Applications/Julia-1.4.app/Contents/Resources/julia/bin/julia --project=../../ClimateMachine.jl driver.jl
 ```
 
