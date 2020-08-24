@@ -21,3 +21,8 @@ export JULIA_MPI_PATH="/usr/local"
 /Applications/Julia-1.4.app/Contents/Resources/julia/bin/julia --project=../../ClimateMachine.jl driver.jl
 ```
 
+## Using Package
+```
+Pkg.add(PackageSpec(url="https://github.com/clima/climatemachine.jl",rev="master"))
+```
+
