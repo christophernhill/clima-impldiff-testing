@@ -16,7 +16,12 @@ end
 import  ClimateMachine.SystemSolvers:
     BatchedGeneralizedMinimalResidual, linearsolve!
 
+# Needed to control diagnostics dispatch
+using ClimateMachine.ConfigTypes
+struct IVDCConfigType <: ClimateMachineConfigType end
+
 include("IVDCModel.jl")
+include("ivdc_diagnostics.jl")
 
  #####
  # Basic initialization
@@ -113,6 +118,7 @@ include("IVDCModel.jl")
   )
 
  # dgn_parms=(interval="1steps",type=IVDCConfigType(),name="default")
+ dgngrp=setup_single_column_default_diagnostics( IVDCConfigType(), "1steps", "default_output_group")
  # dgngrp=setup_single_column_default_diagnostics(dgn_parms.type,dgn_parms.interval,dgn_parms.name)
  # dgn_config=ClimateMachine.DiagnosticsConfiguration([dgngrp])
  
