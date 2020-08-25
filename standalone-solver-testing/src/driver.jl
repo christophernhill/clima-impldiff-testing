@@ -5,6 +5,10 @@ using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
 using ClimateMachine.DGMethods.NumericalFluxes
 
+using Dates
+using ClimateMachine.Diagnostics
+using CLIMAParameters
+
 macro oldnew()
  return eval(newstyle)
 end
@@ -90,7 +94,28 @@ include("IVDCModel.jl")
    ivdc_Q;
    max_subspace_size=10);
 
+ # Save initial state
  θ₀=deepcopy( ivdc_Q.θ )
+
+ # Setup some callbacks and diagnostics
+ callbacks = ()
+ struct EarthParameterSet <: AbstractEarthParameterSet end
+ pset = EarthParameterSet()
+ dgn_starttime = replace(string(now()), ":" => ".")
+ od=ClimateMachine.ClimateMachine_Settings().output_dir
+ Diagnostics.init(
+   mpicomm,
+   pset,
+   ivdc_dg,
+   ivdc_Q,
+   dgn_starttime,
+   od
+  )
+
+ # dgn_parms=(interval="1steps",type=IVDCConfigType(),name="default")
+ # dgngrp=setup_single_column_default_diagnostics(dgn_parms.type,dgn_parms.interval,dgn_parms.name)
+ # dgn_config=ClimateMachine.DiagnosticsConfiguration([dgngrp])
+ 
 
  # Set up right hand side
  # for i=1:200000
