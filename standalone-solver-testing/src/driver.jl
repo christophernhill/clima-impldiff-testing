@@ -20,6 +20,7 @@ import  ClimateMachine.SystemSolvers:
 using ClimateMachine.ConfigTypes
 struct IVDCConfigType <: ClimateMachineConfigType end
 
+include("MYDIAGSModel.jl")
 include("IVDCModel.jl")
 include("ivdc_diagnostics.jl")
 
@@ -80,6 +81,8 @@ include("ivdc_diagnostics.jl")
  # Set a timestep for implicit solve
  dt = 5400/5
 
+ # Create a container balance law for working with multiple DG models in Diagnostics
+
  # Create balance law and RHS arrays for diffusion equation
  ivdc_dg = IVDCDGModel(
   IVDCModel{FT}(;dt=dt,cʰ=cʰ,cᶻ=cᶻ,gconf=gconf),
@@ -103,6 +106,16 @@ include("ivdc_diagnostics.jl")
  θ₀=deepcopy( ivdc_Q.θ )
 
  # Setup some callbacks and diagnostics
+ diagsconf=(myivdcdg=ivdc_dg,myivdcq=ivdc_Q)
+ mydiags_dg=MYDIAGSModel(
+  MYDIAGSModel{FT}(;diagsconf=diagsconf),
+  grid_3D,
+  RusanovNumericalFlux(),
+  CentralNumericalFluxSecondOrder(),
+  CentralNumericalFluxGradient();
+  direction=VerticalDirection(),
+ );
+
  callbacks = ()
  struct EarthParameterSet <: AbstractEarthParameterSet end
  pset = EarthParameterSet()
@@ -111,7 +124,7 @@ include("ivdc_diagnostics.jl")
  Diagnostics.init(
    mpicomm,
    pset,
-   ivdc_dg,
+   mydiags_dg,
    ivdc_Q,
    dgn_starttime,
    od
